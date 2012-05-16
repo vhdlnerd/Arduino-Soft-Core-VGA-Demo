@@ -1,0 +1,228 @@
+--
+-- Module: syscon 
+--
+-- Generates a VGA pixel clock based on the VGA_CLK_OUT_PERIOD generic.  The 
+-- period (in ps) specified by VGA_CLK_OUT_PERIOD must be in the LUT constant.
+-- To add a new VGA pixel rate, just add a new entery i nthe LUT constant.
+--
+-- The LUT is used to look up the correct M and D values for the DCM in oeder
+-- to create the desired freq.
+--
+-- Note: Of course, the code is NOT generic -- it will only work for a
+--       Xilinx Spartan 3E FPGA (of other Xilinx FPGA with the exact same
+--       DCM).
+--
+
+library ieee;
+use ieee.std_logic_1164.ALL;
+use ieee.numeric_std.ALL;
+library UNISIM;
+use UNISIM.Vcomponents.ALL;
+
+entity syscon is
+  generic (
+    SYS_CLK_IN_PERIOD  : real    := 31.125;         -- default to 32MHz input clock
+    VGA_CLK_OUT_PERIOD : natural := 39722;          -- default to ~25.175MHz
+    IBUFG_ENABLE       : boolean := TRUE
+  );
+   port ( sysClk_i       : in    std_logic;     -- external system clock input
+          rst_i          : in    std_logic;     -- external async. reset input
+          clkVga_o       : out   std_logic;     -- VGA pixel clock
+          clkVga180_o    : out   std_logic;     -- VGA pixel clock (180 Deg shifted)
+          clk_o          : out   std_logic;     -- sysClk
+          clk2x_o        : out   std_logic;     -- sysClk * 2
+          clkDiv2_o      : out   std_logic;     -- sysClk / 2 output
+          rst_o          : out   std_logic;     -- reset for the system clock domain
+          vgaRst_o       : out   std_logic;     -- reset for the VGA pixel clock domain
+          locked_o       : out   std_logic);    -- DCM locked signal
+end syscon;
+
+architecture structure of syscon is
+  type lut_rec_type is record 
+    freq   : real;     -- in MHz    (Not used,yet)
+    period : natural;  -- in ps
+    mul    : natural;  -- DCM's CLKFX_MULTIPLY value
+    div    : natural;  -- DCM's CLKFX_DIVIDE value
+  end record lut_rec_type;
+  
+  type lut_type is array (natural range <>) of lut_rec_type;
+  
+--  constant LUT : lut_type := (
+--            ( 25.175, 39722, 11, 14),      -- ~ 0.13% error
+--            ( 50.000, 20000, 25, 16),      
+--            ( 65.000, 15385, 13, 10),      --   0.00% error
+--            ( 81.620, 12252, 23,  9),      -- ~ 0.19% error
+--            (108.000,  9259, 27,  8),
+--            (162.000,  6173,  5,  1)       -- ~ 1.23% error
+--           );
+
+  constant LUT : lut_type := (
+            ( 25.175, 39722, 11, 14),      -- ~ 0.13% error
+            ( 50.000, 20000, 25, 16),      
+            ( 65.000, 15385,  2,  1),      -- ~ 1.50% error
+            ( 81.620, 12252, 23,  9),      -- ~ 0.19% error
+            (108.000,  9259, 27,  8),
+            (162.000,  6173,  5,  1)       -- ~ 1.23% error
+           );
+  
+  function luDiv(key : natural) return natural is
+  begin
+    for i in LUT'range loop
+      if LUT(i).period = key then
+        return LUT(i).div;
+      end if;
+    end loop;
+    -- ERROR!  Key not found
+    assert false
+    report "Key could not be found in the LUT, in function luDiv()!!!  Unsupported pixel clock period!"
+    severity FAILURE;
+    return 1;
+  end function luDiv;
+
+  -- Function to lookup the divider
+  function luMul(key : natural) return natural is
+  begin
+    for i in LUT'range loop
+      if LUT(i).period = key then
+        return LUT(i).mul;
+      end if;
+    end loop;
+    -- ERROR!  Key not found
+    assert false
+    report "Key could not be found in the LUT, in function luMul()!!!  Unsupported pixel clock period!"
+    severity FAILURE;
+    return 1;
+  end function luMul;
+
+   constant CLKFX_MULTIPLY  : natural := luMul(VGA_CLK_OUT_PERIOD);
+   constant CLKFX_DIVIDE    : natural := luDiv(VGA_CLK_OUT_PERIOD);
+   
+   signal CLKDV_BUF         : std_logic;
+   signal clkFb             : std_logic;
+   signal CLKFX_BUF         : std_logic;
+   signal CLKFX180_BUF      : std_logic;
+   signal CLKIN_IBUFG       : std_logic;
+   signal CLK0_BUF          : std_logic;
+   signal CLK2X_BUF         : std_logic;
+   signal GND_BIT           : std_logic;
+   signal clkVga            : std_logic;
+   signal clkVga180         : std_logic;
+   signal locked            : std_logic;
+   signal rstVec            : std_logic_vector(3 downto 0);
+   signal vgaRstVec         : std_logic_vector(3 downto 0);
+
+   attribute keep : boolean ;
+   attribute keep of rstVec, vgaRstVec : signal is true ;
+   
+begin
+   GND_BIT  <= '0';
+   clk_o    <= clkFb;
+   clkVga_o <= clkVga;
+   clkVga180_o <= clkVga180;
+   locked_o <= locked;
+   rst_o    <= rstVec(rstVec'left);
+   vgaRst_o <= vgaRstVec(vgaRstVec'left);
+   
+   IBUFG_YES : if IBUFG_ENABLE generate
+   begin
+     CLKIN_IBUFG_INST : IBUFG
+        port map (I=>sysClk_i, O=>CLKIN_IBUFG);
+   end generate IBUFG_YES;
+   
+   IBUFG_NO : if not IBUFG_ENABLE generate
+   begin
+    CLKIN_IBUFG <= sysClk_i;
+   end generate IBUFG_NO;
+   
+   CLKDV_BUFG_INST : BUFG
+      port map (I=>CLKDV_BUF, O=>clkDiv2_o);
+   
+   CLKFX_BUFG_INST : BUFG
+      port map (I=>CLKFX_BUF, O=>clkVga);
+   
+   CLKFX180_BUFG_INST : BUFG
+      port map (I=>CLKFX180_BUF, O=>clkVga180);
+   
+   CLK0_BUFG_INST : BUFG
+      port map (I=>CLK0_BUF, O=>clkFb);
+   
+   CLK2X_BUFG_INST : BUFG
+      port map (I=>CLK2X_BUF, O=>clk2x_o);
+   
+   DCM_SP_INST : DCM_SP
+   generic map( CLK_FEEDBACK => "1X",
+            CLKDV_DIVIDE          => 2.0,
+            CLKFX_DIVIDE          => CLKFX_DIVIDE,
+            CLKFX_MULTIPLY        => CLKFX_MULTIPLY,
+            CLKIN_DIVIDE_BY_2     => FALSE,
+            CLKIN_PERIOD          => SYS_CLK_IN_PERIOD,
+            CLKOUT_PHASE_SHIFT    => "NONE",
+            DESKEW_ADJUST         => "SYSTEM_SYNCHRONOUS",
+            DFS_FREQUENCY_MODE    => "LOW",
+            DLL_FREQUENCY_MODE    => "LOW",
+            DUTY_CYCLE_CORRECTION => TRUE,
+            FACTORY_JF            => x"C080",
+            PHASE_SHIFT           => 0,
+            STARTUP_WAIT          => FALSE)
+      port map (CLKFB     => clkFb,
+                CLKIN     => CLKIN_IBUFG,
+                DSSEN     => GND_BIT,
+                PSCLK     => GND_BIT,
+                PSEN      => GND_BIT,
+                PSINCDEC  => GND_BIT,
+                RST       => rst_i,
+                CLKDV     => CLKDV_BUF,
+                CLKFX     => CLKFX_BUF,
+                CLKFX180  => CLKFX180_BUF,
+                CLK0      => CLK0_BUF,
+                CLK2X     => CLK2X_BUF,
+                CLK2X180  => open,
+                CLK90     => open,
+                CLK180    => open,
+                CLK270    => open,
+                LOCKED    => locked,
+                PSDONE    => open,
+                STATUS    => open);
+   
+
+  --
+  -- Create the resets for the two clock domains.
+  -- 
+  -- This is an attempt to provide a reset that async
+  -- asserts and sync deasserts.  This code needs some work;
+  -- you want the lock signal from the DCM involved here to
+  -- keep the shifters from shifting until the DCM locks.  
+  -- However, the lock signal cannot change sync. to both
+  -- output clocks; so, you should not use the lock signal directly.
+  --  
+  -- Anyway, this is good enough for hobby stuff, but it won't
+  -- fly on the space shuttle!
+  sysRst_inst : entity work.vnShiftLeftReg(rtl)
+    generic map(
+           RST_VAL   => "1"       -- Async reset value
+    )
+    port map(
+           clk_i     => clkFb,    -- clock
+           rst_i     => rst_i,    -- Active high reset
+           data_i    => '0',      -- New serial data input
+           ldVal_i   => "0",      -- Load value
+           shEn_i    => locked,
+           reg_o	   => rstVec    -- The shift register output
+			  );
+
+  vgaSysRst_inst : entity work.vnShiftLeftReg(rtl)
+    generic map(
+           RST_VAL   => "1"       -- Async reset value
+    )
+    port map(
+           clk_i     => clkVga,   -- clock
+           rst_i     => rst_i,    -- Active high reset
+           data_i    => '0',      -- New serial data input
+           ldVal_i   => "0",      -- Load value
+           shEn_i    => locked,
+           reg_o	   => vgaRstVec    -- The shift register output
+			  );
+
+end structure;
+
+

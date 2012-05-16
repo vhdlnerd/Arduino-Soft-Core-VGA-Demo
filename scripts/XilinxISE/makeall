@@ -1,0 +1,28 @@
+#!/usr/bin/sh
+
+#
+# The shell script will make a set of VGA demo bit files
+# for various VGA resolutions and fonts.
+#
+
+makeone()
+{
+	echo "--------------------------------------------"
+	echo "Building for VGA $1 - Two Color Mode = $2"
+	make clean VGA_MODE=$1 TWO_COLOR_MODE=$2
+	make all   VGA_MODE=$1 TWO_COLOR_MODE=$2
+	echo "--------------------------------------------"
+}
+
+makeone 640x480_80x40x256    FALSE
+makeone 800x600_100x50x256   FALSE
+makeone 1024x768_128x64x256  FALSE
+makeone 1152x864_144x72x256  FALSE
+
+makeone 640x480_80x30x128    FALSE
+makeone 1024x768_128x48x128  FALSE
+makeone 1152x864_144x54x128  FALSE
+makeone 1280x1024_160x64x128 TRUE
+makeone 1600x1200_200x75x128 TRUE
+
+ls -l *.bit
