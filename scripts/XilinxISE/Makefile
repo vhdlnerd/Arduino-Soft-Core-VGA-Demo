@@ -19,7 +19,12 @@ ${PROJECT}.ngc:
 	mkdir -p xst/projnav.tmp/
 	@rm -f __tmp.prt __tmp.xst
 	echo "-generics {DIS_DESC_NAME=\"${VGA_MODE}\" TWO_COLOR_ONLY=${TWO_COLOR_MODE}}" > __tmp.prt
+ifeq ($(PLATFORM),Papilio_One)
+	cat ${PROJECT}_P1.xst __tmp.prt > __tmp.xst
+else
 	cat ${PROJECT}.xst __tmp.prt > __tmp.xst
+endif
+#	sed -i 's/-p .*/-p ${PART}/' __tmp.xst
 	xst -intstyle ise -ifn __tmp.xst -ofn ${PROJECT}.syr
 	@rm -f __tmp.prt __tmp.xst
         
@@ -36,7 +41,11 @@ ${PROJECT}.ncd: ${PROJECT}_map.ncd
 	par -w -intstyle ise -ol high ${PROJECT}_map.ncd ${PROJECT}.ncd ${PROJECT}.pcf
 
 ${OUT_NAME}.bit: ${PROJECT}.ncd
+ifeq ($(PLATFORM),Papilio_One)
+	bitgen -f ${PROJECT}_P1.ut ${PROJECT}.ncd
+else
 	bitgen -f ${PROJECT}.ut ${PROJECT}.ncd
+endif
 	mv -f ${PROJECT}.bit ${OUT_NAME}.bit
 
 tidy:

@@ -23,15 +23,36 @@ use WORK.XMemCompPack.all;  -- Xilinx RAM components
 use WORK.MemAccessCtrlPack.all;
 use WORK.MemAccessCompPack.all;
 
-entity Papilio_AVR8 is port(
-	 nrst   : in    std_logic;						--Uncomment this to connect reset to an external pushbutton. Must be defined in ucf.
+library vn_lib;
+use vn_lib.display_pack.all;
+use vn_lib.vn_pack.all;
+
+Library UNISIM;
+use UNISIM.vcomponents.all;
+
+entity Papilio_AVR8 is
+    generic (
+      TWO_COLOR_ONLY   : boolean := FALSE;
+--      DIS_DESC_NAME    : string := "640x480_80x40x256"
+--      DIS_DESC_NAME    : string := "800x600_100x50x256"
+      DIS_DESC_NAME    : string := "1024x768_128x64x256"
+--      DIS_DESC_NAME    : string := "1152x864_144x72x256"
+
+--      DIS_DESC_NAME    : string := "640x480_80x30x128"
+--      DIS_DESC_NAME    : string := "1024x768_128x48x128"
+--      DIS_DESC_NAME    : string := "1152x864_144x54x128"
+--      DIS_DESC_NAME    : string := "1280x1024_160x64x128"
+--      DIS_DESC_NAME    : string := "1600x1200_200x75x128"
+  );
+  port(
+	 nrst_i : in    std_logic;						--Uncomment this to connect reset to an external pushbutton. Must be defined in ucf.
 	 clk    : in    std_logic;
 	 porta  : inout std_logic_vector(7 downto 0);
-	 portb  : inout std_logic_vector(7 downto 0);
-	 portc  : inout std_logic_vector(7 downto 0);
-	 portd  : inout std_logic_vector(7 downto 0);
-	 porte  : inout std_logic_vector(7 downto 0);
-	 portf  : inout std_logic_vector(7 downto 0);
+--	 portb  : inout std_logic_vector(7 downto 0);
+--	 portc  : inout std_logic_vector(7 downto 0);
+--	 portd  : inout std_logic_vector(7 downto 0);
+--	 porte  : inout std_logic_vector(7 downto 0);
+--	 portf  : inout std_logic_vector(7 downto 0);
 
 	-- UART 
 	rxd    : in    std_logic;
@@ -43,16 +64,45 @@ end Papilio_AVR8;
 
 architecture Struct of Papilio_AVR8 is
 
+function string2Dis(key : string) return Display_type is
+variable ret : Display_type := DIS_1024x768_128x64x256;
+begin
+  if key = "640x480_80x40x256" then
+    ret := DIS_640x480_80x40x256;
+  elsif key = "800x600_100x50x256" then
+    ret := DIS_800x600_100x50x256;
+  elsif key = "1024x768_128x64x256" then
+    ret := DIS_1024x768_128x64x256;
+  elsif key = "1152x864_144x72x256" then
+    ret := DIS_1152x864_144x72x256;
+  elsif key = "640x480_80x30x128" then
+    ret := DIS_640x480_80x30x128;
+  elsif key = "1024x768_128x48x128" then
+    ret := DIS_1024x768_128x48x128;
+  elsif key = "1152x864_144x54x128" then
+    ret := DIS_1152x864_144x54x128_FONT2; -- so we can demo the other font
+--    ret := DIS_1152x864_144x54x128;
+  elsif key = "1280x1024_160x64x128" then
+    ret := DIS_1280x1024_160x64x128;
+  elsif key = "1600x1200_200x75x128" then
+    ret := DIS_1600x1200_200x75x128;
+  else
+  end if;
+  return ret;
+end function string2Dis;
+
+constant DIS_DESC : Display_type := string2Dis(DIS_DESC_NAME);
+  
 -- Use these setting to control which peripherals you want to include with your custom AVR8 implementation.
-constant CImplPORTA			            : boolean := TRUE;
-constant CImplPORTB			            : boolean := TRUE;
-constant CImplPORTC							: boolean := TRUE;
-constant CImplPORTD    			         : boolean := TRUE;
-constant CImplPORTE      			      : boolean := TRUE;
-constant CImplPORTF           			: boolean := TRUE;
+constant CImplPORTA			            : boolean := FALSE;
+constant CImplPORTB			            : boolean := FALSE;
+constant CImplPORTC							    : boolean := FALSE;
+constant CImplPORTD    			        : boolean := FALSE;
+constant CImplPORTE      			      : boolean := FALSE;
+constant CImplPORTF           			: boolean := FALSE;
 constant CImplUART      			      : boolean := TRUE;	--AVR8 UART peripheral
-constant CImplTmrCnt     					: boolean := TRUE;	--AVR8 Timer
-constant CImplpapilio_core_template    : boolean := FALSE;	--An example User Core, use this template to make your own custom peripherals.
+constant CImplTmrCnt     					  : boolean := TRUE;	--AVR8 Timer
+constant CImplpapilio_core_template : boolean := TRUE;	--An example User Core, use this template to make your own custom peripherals.
 
 
 component XDM4Kx8	port(
@@ -75,41 +125,49 @@ component XPM8Kx16 port(
 					  );
 end component;
 
-COMPONENT DCM32to16
-PORT(
-	CLKIN_IN : IN std_logic;          
-	CLKFX_OUT : OUT std_logic;
-	CLKIN_IBUFG_OUT : OUT std_logic;
-	CLK0_OUT : OUT std_logic
-	);
-END COMPONENT;
+--COMPONENT DCM32to16
+--PORT(
+--	CLKIN_IN : IN std_logic;          
+--	CLKFX_OUT : OUT std_logic;
+--	CLKFX180_OUT : OUT std_logic;
+--	CLKIN_IBUFG_OUT : OUT std_logic;
+--	CLK0_OUT : OUT std_logic
+--	);
+--END COMPONENT;
 
 -- ############################## Define Components for User Cores ##################################################
 
 -- Example Core - core9 
-COMPONENT papilio_core_template
-PORT(
-			-- begin Signals required by AVR8 for this core, do not modify.
-			nReset 		: in  STD_LOGIC;
-			clk 			: in  STD_LOGIC;
-			adr 			: in  STD_LOGIC_VECTOR (15 downto 0);
-			dbus_in 		: in  STD_LOGIC_VECTOR (7 downto 0);
-			dbus_out 	: out  STD_LOGIC_VECTOR (7 downto 0);
-			iore 			: in  STD_LOGIC;
-			iowe 			: in  STD_LOGIC;
-			out_en		: out STD_LOGIC;
-			-- end Signals required by AVR8 for this core, do not modify.
-
-			--Define signals that you want to go in or out of the peripheral. These are usually going to be connected to extenal pins of the Papilio board.
-			--Two Output Signals
-			output_sig	: out std_logic_vector (1 downto 0);
-			
-			--Two Input Signals
-			input_sig		: in std_logic_vector (1 downto 0)
-	);
-END COMPONENT;
+--COMPONENT papilio_core_template
+--PORT(
+--			-- begin Signals required by AVR8 for this core, do not modify.
+--			nReset 		: in  STD_LOGIC;
+--			clk 			: in  STD_LOGIC;
+--			adr 			: in  STD_LOGIC_VECTOR (15 downto 0);
+--			dbus_in 		: in  STD_LOGIC_VECTOR (7 downto 0);
+--			dbus_out 	: out  STD_LOGIC_VECTOR (7 downto 0);
+--			iore 			: in  STD_LOGIC;
+--			iowe 			: in  STD_LOGIC;
+--			out_en		: out STD_LOGIC;
+--			-- end Signals required by AVR8 for this core, do not modify.
+--
+--			--Define signals that you want to go in or out of the peripheral. These are usually going to be connected to extenal pins of the Papilio board.
+--			--Two Output Signals
+--			output_sig	: out std_logic_vector (1 downto 0);
+--			
+--			--Two Input Signals
+--			input_sig		: in std_logic_vector (1 downto 0)
+--	);
+--END COMPONENT;
 
 -- ###############################################################################################################
+
+--signal	 porta  : std_logic_vector(7 downto 0);
+signal	 portb  : std_logic_vector(7 downto 0);
+signal	 portc  : std_logic_vector(7 downto 0);
+signal	 portd  : std_logic_vector(7 downto 0);
+signal	 porte  : std_logic_vector(7 downto 0);
+signal	 portf  : std_logic_vector(7 downto 0);
 
 -- ############################## Signals connected directly to the core ##########################################
 
@@ -269,9 +327,17 @@ signal ram_ramwe         : std_logic;
 
 -- Clock generation/distribution
 signal clk16M             : std_logic; 
+signal clk32M             : std_logic; 
+--signal clk16M180          : std_logic; 
+--signal ibufgClk           : std_logic; 
+signal vgaRst : std_logic;
+signal vgaClk : std_logic;
+signal vgaClk180 : std_logic;
 
 -- nrst
---signal nrst             : std_logic;  		--Comment this to connect reset to an external pushbutton.
+signal nrst               : std_logic;  		--Comment this to connect reset to an external pushbutton.
+signal rst_in             : std_logic;
+signal rst16M             : std_logic;
 
 -- ############################## Signals connected directly to the I/O registers ################################
 -- PortA
@@ -326,13 +392,34 @@ vcc  <= '1';
 -- Added for Synopsys compatibility	
 
 --nrst <= '1';										--Comment this to connect reset to an external pushbutton.
+rst_in <= not nrst_i;
 
-	Inst_DCM32to16: DCM32to16 PORT MAP(
-		CLKIN_IN => clk,
-		CLKFX_OUT => clk16M,
-		CLKIN_IBUFG_OUT => open,
-		CLK0_OUT => open
-	);
+--	Inst_DCM32to16: DCM32to16
+--  PORT MAP(
+--		CLKIN_IN => clk,
+--		CLKFX_OUT => clk16M,
+--		CLKFX180_OUT => clk16M180,
+--		CLKIN_IBUFG_OUT => ibufgClk,
+--		CLK0_OUT => clk32M
+--	);
+
+syscon_inst: entity vn_lib.syscon(structure)
+  generic map (
+          VGA_CLK_OUT_PERIOD => DIS_DESC.Vga.PixelClockPeriod
+  )
+  port map (
+          sysClk_i       => clk,      -- system clock input
+          rst_i          => rst_in,   -- external async. reset input
+          clkVga_o       => vgaClk,   -- VGA pixel clock
+          clkVga180_o    => vgaClk180,-- VGA pixel clock
+          clk_o          => clk32M,   -- sysClk
+          clk2x_o        => open,     -- sysClk * 2
+          clkDiv2_o      => clk16M,   -- sysClk / 2 output
+          rst_o          => rst16M,   -- sysClk domain reset
+          vgaRst_o       => vgaRst,   -- VGA Pixel clock domain reset
+          locked_o       => open);    -- DCM locked signal
+
+nrst <= not rst16M;
 
 core_inst <= pm_dout;
 
@@ -340,19 +427,58 @@ core_inst <= pm_dout;
 
 -- Example Core - core9 - This is an example of implenting a custom User core.
 Inst_papilio_core_template:if CImplpapilio_core_template generate
-papilio_core_template_COMP:component papilio_core_template 
-PORT MAP(
-	nReset => nrst,
-	clk => clk16M,
-	adr => core_adr,
-	dbus_in => core_dbusout,
-	dbus_out => core9_dbusout,
-	out_en => core9_out_en,
-	iore => core_iore,
-	iowe => core_iowe,
-	output_sig => porta(1 downto 0),
-	input_sig => portb(1 downto 0)
-);	
+  constant IO_BASE_ADDRESS : std_logic_vector (15 downto 0) := x"0FE0"; -- _SFR_IO8(0x0FE0) / _SFR_MEM8(0x1000)
+
+  signal color     : std_logic_vector(2 downto 0);
+  signal hSync     : std_logic;
+  signal vSync     : std_logic;
+  signal addrMatch : std_logic;
+  signal we        : std_logic;
+  signal stb       : std_logic;
+  signal ack       : std_logic;
+  signal lock      : std_logic;
+  signal addr      : std_logic_vector(7 downto 0);
+  
+begin
+
+vga_inst : entity vn_lib.vnVga(rtl)
+  generic map(
+    DIS_DESC          => DIS_DESC,
+    TWO_COLOR_ONLY    => TWO_COLOR_ONLY
+  )
+  port map (
+    rst_i       =>  rst16M,
+    clk_i       =>  clk16M,
+    vgaRst_i    =>  vgaRst,
+    vgaClk_i    =>  vgaClk,
+    -- wishbone bus
+    we_i        =>  we,
+    stb_i       =>  stb,
+    ack_o       =>  ack,
+    adr_i       =>  addr,
+    dat_i       =>  core_dbusout,
+    dat_o       =>  core9_dbusout,
+    -- VGA Outputs
+    color_o     =>  color,     -- Video color triplet (2=>Red, 1=>Green, 0=>Blue)
+    hSync_o     =>  hSync,
+    vSync_o     =>  vSync
+    );   
+    
+  addrMatch    <= '1' when IO_BASE_ADDRESS(15 downto 5) =  core_adr(15 downto 5) else '0';
+  stb          <= (core_iowe or core_iore) and addrMatch;
+  we           <= core_iowe                and addrMatch;
+  addr         <= "000" & core_adr(4 downto 0);
+  core9_out_en <= ack and core_iore and addrMatch;
+  
+  porta(7) <= color(2);  -- Red
+  porta(6) <= color(1);  -- Green
+  porta(2) <= color(0);  -- Blue
+  porta(1) <= hSync;
+  porta(0) <= vSync;
+
+  porta(3) <= '0';
+  porta(4) <= '0';
+  porta(5) <= '0';
 
 -- Example Core - core9 connection to the external multiplexer
 io_port_out(9) <= core9_dbusout;

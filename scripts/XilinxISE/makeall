@@ -14,6 +14,20 @@ makeone()
 	echo "--------------------------------------------"
 }
 
+make500k()
+{
+	echo "--------------------------------------------"
+	echo "Building for VGA $1 - Two Color Mode = $2"
+	echo "(for the Papilio One 500k Board)"
+	make clean VGA_MODE=$1 TWO_COLOR_MODE=$2 PART=xc3s500e-4-vq100 PLATFORM=Papilio_One
+	make all   VGA_MODE=$1 TWO_COLOR_MODE=$2 PART=xc3s500e-4-vq100 PLATFORM=Papilio_One
+	echo "--------------------------------------------"
+}
+
+# Make one for the Papilio One 500K Board
+make500k 1024x768_128x64x256  FALSE
+
+# The rest are for the Papilio Plus Board (with a LX9 device)
 makeone 640x480_80x40x256    FALSE
 makeone 800x600_100x50x256   FALSE
 makeone 1024x768_128x64x256  FALSE

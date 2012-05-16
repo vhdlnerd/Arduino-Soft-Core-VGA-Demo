@@ -42,11 +42,11 @@ ARCHITECTURE behavior OF testbench IS
 	 nrst    : in    std_logic;
 	 clk    : in    std_logic;
 	 porta  : inout std_logic_vector(7 downto 0);
-	 portb  : inout std_logic_vector(7 downto 0);
-	 portc  : inout std_logic_vector(7 downto 0);
-	 portd  : inout std_logic_vector(7 downto 0);
-	 porte  : inout std_logic_vector(7 downto 0);
-	 portf  : inout std_logic_vector(7 downto 0);
+	 --portb  : inout std_logic_vector(7 downto 0);
+	 --portc  : inout std_logic_vector(7 downto 0);
+--	 portd  : inout std_logic_vector(7 downto 0);
+--	 porte  : inout std_logic_vector(7 downto 0);
+--	 portf  : inout std_logic_vector(7 downto 0);
 
 	-- UART 
 	rxd    : in    std_logic;
@@ -54,7 +54,6 @@ ARCHITECTURE behavior OF testbench IS
         );
     END COMPONENT;
     
-
    --Inputs
    signal nrst : std_logic := '0';
    signal clk : std_logic := '0';
@@ -72,13 +71,20 @@ ARCHITECTURE behavior OF testbench IS
    signal portd : std_logic_vector(7 downto 0);
    signal porte : std_logic_vector(7 downto 0);
    signal portf : std_logic_vector(7 downto 0);
+   signal data  : std_logic_vector(15 downto 0);
 
  	--Outputs
    signal txd : std_logic;
    signal TDO : std_logic;
+   signal address : std_logic_vector(17 downto 0);
+   signal ncs     : std_logic;
+   signal nwe     : std_logic;
+   signal noe     : std_logic;
+   signal nble    : std_logic;
+   signal nbhe    : std_logic;
 
    -- Clock period definitions
-   constant clk_period : time := 1us;
+   constant clk_period : time := 10ns;
  
 BEGIN
  
@@ -87,14 +93,15 @@ BEGIN
           nrst => nrst,
           clk => clk,
           porta => porta,
-          portb => portb,
-          portc => portc,
-          portd => portd,
-          porte => porte,
-          portf => portf,
+          --portb => portb,
+--          portc => portc,
+--          portd => portd,
+--          porte => porte,
+--          portf => portf,
           rxd => rxd,
           txd => txd
         );
+
 
    -- Clock process definitions
    clk_process :process
@@ -110,14 +117,14 @@ BEGIN
    stim_proc: process
    begin		
       -- hold reset state for 100ms.
-      wait for 1ms;	
+      wait for 1 us;	
 
       wait for clk_period*10;
 
       -- insert stimulus here 
 		nrst <= '1';
-		portb <= "11111111";
-		portd <= "10101010";
+--		portb <= "11111111";
+--		portd <= "10101010";
 --		wait for clk_period*10;
 --		nrst <= '0';
 --		wait for clk_period*10;	

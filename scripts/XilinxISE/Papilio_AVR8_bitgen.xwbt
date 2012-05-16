@@ -1,8 +1,7 @@
-INTSTYLE=ise
-INFILE=C:\dbdev\My Dropbox\GadgetFactory\Arduino-Soft-Core\scripts\XilinxISE\Papilio_AVR8.ncd
-OUTFILE=C:\dbdev\My Dropbox\GadgetFactory\Arduino-Soft-Core\scripts\XilinxISE\Papilio_AVR8.bit
+INFILE=C:\Users\Brian\Documents\Xilnix\Arduino-Soft-Core-VGA-Demo\scripts\XilinxISE\Papilio_AVR8.ncd
+OUTFILE=C:\Users\Brian\Documents\Xilnix\Arduino-Soft-Core-VGA-Demo\scripts\XilinxISE\Papilio_AVR8.bit
 FAMILY=Spartan3E
-PART=xc3s250e-4vq100
-WORKINGDIR=C:\dbdev\My Dropbox\GadgetFactory\Arduino-Soft-Core\scripts\XilinxISE
+PART=xc3s500e-4vq100
+WORKINGDIR=C:\Users\Brian\Documents\Xilnix\Arduino-Soft-Core-VGA-Demo\scripts\XilinxISE
 LICENSE=WebPack
-USER_INFO=0_0_333
+USER_INFO=209039615_0_0_656
